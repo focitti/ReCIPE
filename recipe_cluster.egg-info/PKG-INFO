@@ -3,8 +3,8 @@ Name: recipe-cluster
 Version: 0.0.3
 Summary: ReCIPE package description
 Author-email: focitti <focitt01@gmail.com>
-Project-URL: Homepage, https://github.com/
-Project-URL: Issues, https://github.com/
+Project-URL: Homepage, https://github.com/focitti/ReCIPE
+Project-URL: Issues, https://github.com/focitti/ReCIPE/issues
 Classifier: Programming Language :: Python :: 3
 Classifier: License :: OSI Approved :: MIT License
 Classifier: Operating System :: OS Independent
@@ -175,4 +175,13 @@ options:
                         Max number of proteins to add to a cluster. Default = 20
   --readdition-threshold READDITION_THRESHOLD
                         Filter out proteins added more times than cutoff
+```
+
+In addition to command line access. The methods in this package can be accessed programmatically with the same arguments as follows:
+```
+import recipe-cluster as recipe
+
+recipe.reconnect(...)
+recipe.parse(...)
+recipe.cook(...)
 ```
