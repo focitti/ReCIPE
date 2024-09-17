@@ -18,7 +18,7 @@ from math import sqrt
 from math import floor
 from math import ceil
 from collections import defaultdict
-
+from tqdm import tqdm
 
 import numpy as np
 import pandas as pd
@@ -29,7 +29,7 @@ warnings.simplefilter(action='ignore', category=RuntimeWarning)
 
 
 # importing the classes recipe uses
-from ..core.matrix import ProteinMatrix # ppi matrix 
+from ..core.matrix import ProteinMatrix # ppi matrix
 from ..core.cluster import AllClusters # dictionary to hold all clusters (in form number of cluster : list of proteins in that cluster)
 from ..core.degree import DegreeList # creates a list of all proteins in order of their degree
 from ..core.matrix import SubMatrix
@@ -63,13 +63,14 @@ def compute_qualifying_proteins(
     matrix_df = matrix.get_matrix()
     all_proteins_to_add = {}
 
-    for cluster_num in clusters.filter_clusters_by_size(lower_bound, upper_bound).keys():
+    filtered_clusters = clusters.filter_clusters_by_size(lower_bound, upper_bound)
+    for cluster_num in tqdm(filtered_clusters.keys(),total=len(filtered_clusters)):
         # initialise list of proteins to add
         added_proteins = []
         protein_to_add = "initialise"
         # get all the proteins associated to a cluster
         cluster_proteins = clusters.get_cluster_proteins(cluster_num)
-        # get the list of potential proteins to add to cluster 
+        # get the list of potential proteins to add to cluster
         potential_proteins = list(filter(lambda prot: prot not in cluster_proteins and degree_dict[prot] < degree_cutoff, proteins))
         # TODO: is there a better way of doing this??
         submatrix = SubMatrix(cluster_proteins, matrix)
@@ -89,7 +90,7 @@ def compute_qualifying_proteins(
                 connection_sitch = floor(sqrt(len(np.unique(components_and_labels[1]))))
             min_connection = connection_sitch if connection_sitch > 1 else 2
 
-            for protein in potential_proteins:
+            for protein in tqdm(potential_proteins,leave=False):
                 a = protein not in matrix_df
                 if a:
                     with open("mismatched_proteins.txt", 'a+') as f:
@@ -100,7 +101,7 @@ def compute_qualifying_proteins(
                         # create component dictionary
                         protein_component_dictionary = dict(zip(submatrix.get_matrix().index, components_and_labels[1]))
                         # swap the values so the component number is the key
-                        component_dictionary = defaultdict(list) 
+                        component_dictionary = defaultdict(list)
                         for key, val in protein_component_dictionary.items():
                             component_dictionary[val].append(key)
                         # get number of connected components
@@ -141,32 +142,32 @@ def compute_qualifying_proteins(
 
 def reconnect(cluster_filepath,
               network_filepath,
-              outfile,
               lb = 3,
               ub = 100,
               lr = None,
               cthresh = -1,
-              metric = "all",
+              metric = ["degree", "components_connected", "score"],
               max_proteins = 20,
               clusters_labeled = False):
     max_added_proteins = max_proteins # 3
     size = f"{lb}-{ub}"
     lr = lr
 
+    print("initializing cluster matrix")
     matrix, clusters, degreelist = initialize_matrix_clusters_degreelist(network_filepath, cluster_filepath, csv_clusters_have_labels=clusters_labeled)
     qualifying_proteins_by_metric = {} # Dict of structure: {metric: {connectivity_threshold: {cluster_id: [qualifying_proteins]}}}
-    
+
     connectivity_thresholds = []
     if cthresh == -1.0:
-        connectivity_thresholds = [0.1, 0.25, 0.5, 0.75, 1.0] 
+        connectivity_thresholds = [0.1, 0.25, 0.5, 0.75, 1.0]
     else:
         connectivity_thresholds = [cthresh]
     print("connectivity_thresholds", connectivity_thresholds, time.ctime())
-    
-    metrics = {'degree': False, 'components_connected': True, 'score': True}
+
+    metrics_base = {'degree': False, 'components_connected': True, 'score': True}
+    metrics = {k: metrics_base[k] for k in metric}
     for metric in metrics.items():
         # skip all metrics not specified
-        if metric != "all" and metric[0] not in metric: continue 
 
         print("starting metric:", metric[0])
         qualifying_proteins_at_threshold = {}
@@ -191,32 +192,39 @@ def reconnect(cluster_filepath,
             if qualifying_proteins:
                 qualifying_proteins_at_threshold[connectivity_threshold] = qualifying_proteins
                 avg_proteins_added = sum([len(proteins) for proteins in qualifying_proteins.values()]) / len(qualifying_proteins)
-                
+
                 # NOTMETRIC = f"lr: {lr}" if lr else "sqrt" # TODO figure out how to do LR and SQRT Qualifiers
                 print(f"at threshold {connectivity_threshold}, and {metric}, {len(qualifying_proteins)} clusters have an average of {avg_proteins_added} proteins added")
         if qualifying_proteins_at_threshold:
             qualifying_proteins_by_metric[metric[0]] = qualifying_proteins_at_threshold
-            
-    # output results
-    # if not args.modify_clusters: # print dict of all clusters
 
-    if outfile:
-        with open(outfile, "wb") as f:
-            f.write(json.dumps(qualifying_proteins_by_metric).encode('utf-8'))
-        logging.info(f"Results saved to {outfile}")
-    # else: # print modified clusters in the same format as the original clusters
-    #     print("HELP!! TODO: if cluster number exists, retain that otherwise use i to map clusters to waht they were added")
-    #     result_file = f"{args.outdir}/{args.new_clusters_outfile}"
-    #     with open(result_file, "w") as f:
-    #         if args.clusters_labeled:
     return qualifying_proteins_by_metric
 
 def main(args=None):
     if args is None:
         args = get_args().parse_args()
 
-    reconnect(args.cluster_filepath, args.network_filepath, args.outfile, args.lb, args.ub, args.lr, args.connectivity_threshold, args.metric, args.max_proteins, args.clusters_labeled)
-    
+    with open(args.cluster_filepath, "r") as f:
+        cluster_dict = json.load(f)
+    for clkey in cluster_dict.keys():
+        cluster_dict[clkey]["recipe"] = {}
+
+    if not isinstance(args.metric, list):
+        args.metric = [args.metric]
+
+    recipe_results = reconnect(args.cluster_filepath, args.network_filepath, args.lb, args.ub, args.lr, args.connectivity_threshold, args.metric, args.max_proteins, args.clusters_labeled)
+
+    for clkey in tqdm(cluster_dict.keys(),total=len(cluster_dict)):
+        for m, metric_results in recipe_results.items():
+            cluster_dict[clkey]["recipe"][m] = {}
+            for ct, ct_results in metric_results.items():
+                if int(clkey) in ct_results:
+                    cluster_dict[clkey]["recipe"][m][ct] = ct_results[int(clkey)]
+                else:
+                    cluster_dict[clkey]["recipe"][m][ct] = {}
+
+    with open(args.outfile, "w+") as f:
+        json.dump(cluster_dict, f, indent=4)
 
 def get_args(parser=None):
     """
@@ -228,21 +236,21 @@ def get_args(parser=None):
     # TODO: Charlotte: add a default value for the cluster filepath
     # Location Arguments: (where data is, and where to save it)
     parser.add_argument(
-        "-cfp", "--cluster-filepath", 
+        "-cfp", "--cluster-filepath",
         required=True,
-        help = "Cluster filepath", 
+        help = "Cluster filepath",
         type = str
     )
     parser.add_argument (
-        "-cfl", "--clusters-labeled", 
+        "-cfl", "--clusters-labeled",
         required=False,
         help = "If a CSV file of clusters is passed, clusters have labels. Default: False",
         type = bool,
         default = False
     )
     parser.add_argument(
-        "-nfp", "--network-filepath", 
-        help = "Network filepath", 
+        "-nfp", "--network-filepath",
+        help = "Network filepath",
         required=True,
         type = str
     )
@@ -251,44 +259,44 @@ def get_args(parser=None):
     # Arguments for output file options
     '''
     parser.add_argument (
-        "--modify-clusters", 
-        help = "Format of the output file. default is false, meaning the dict (which maps added proteins to clusters, and retains all param options) is printed. if set to true, the modified clusters are printed. Default: False", 
-        type = bool, 
+        "--modify-clusters",
+        help = "Format of the output file. default is false, meaning the dict (which maps added proteins to clusters, and retains all param options) is printed. if set to true, the modified clusters are printed. Default: False",
+        type = bool,
         required = False,
         default = False
     )
     '''
     # parser.add_argument (
-    #     "--new-clusters-outfile", 
+    #     "--new-clusters-outfile",
     #     required=False,
-    #     help = "name for the output file of clusters with qualifying proteins added", 
-    #     type = str, 
+    #     help = "name for the output file of clusters with qualifying proteins added",
+    #     type = str,
     #     default = "updated_clusters.csv"
     # )
 
     # Arguments for which clusters to run ReCIPE on
     # Based on number of proteins in cluster
-    parser.add_argument( 
-        "--lb", 
+    parser.add_argument(
+        "--lb",
         required=False,
-        help = "Lower bound (inclusive) for cluster size. Default: 3", 
+        help = "Lower bound (inclusive) for cluster size. Default: 3",
         type = int,
         default = 3,
     )
     parser.add_argument(
-        "--ub", 
+        "--ub",
         required=False,
-        help = "Upper bound (exclusive) for cluster size. Default: 100", 
+        help = "Upper bound (exclusive) for cluster size. Default: 100",
         type = int,
         default=100,
     )
     # Arguments for ReCIPE
     parser.add_argument(
-        "--lr", 
+        "--lr",
         required=False,
-        help = "Linear ratio (if not using sqrt). Default = None", 
+        help = "Linear ratio (if not using sqrt). Default = None",
         type = float,
-        default = None,  
+        default = None,
 
     )
     parser.add_argument(
@@ -307,12 +315,12 @@ def get_args(parser=None):
     )
 
     parser.add_argument(
-        "--max_proteins", 
+        "--max_proteins",
         required=False,
-        help = "Max number of proteins to add to a cluster. Default = 20", 
+        help = "Max number of proteins to add to a cluster. Default = 20",
         type=int,
         default = 20 # TODO: SHOULD BE NONE TO ALLOW FOR CONNECTIVITY THRESHOLDS
-                      # TODO: Do connectivity parameter also 
+                      # TODO: Do connectivity parameter also
     )
     # parser.add_argument("--ic", help = "Spectral parameter", type = int)
     return parser

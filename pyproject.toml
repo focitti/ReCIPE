@@ -4,9 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "recipe-cluster"
-version = "0.0.3"
+version = "0.0.4"
 authors = [
   { name="focitti", email="focitt01@gmail.com" },
+  { name="Sam Sledzieski", email="samsl@mit.edu" },
 ]
 description = "ReCIPE package description"
 readme = "README.md"
