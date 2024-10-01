@@ -139,7 +139,7 @@ def compute_qualifying_proteins(
             all_proteins_to_add[cluster_num] = added_proteins
     return all_proteins_to_add
 
-def reconnect(cluster_filepath,
+def cook(cluster_filepath,
               network_filepath,
               lb = 3,
               ub = 100,
@@ -211,7 +211,7 @@ def main(args=None):
     if not isinstance(args.metric, list):
         args.metric = [args.metric]
 
-    recipe_results = reconnect(args.cluster_filepath, args.network_filepath, args.lb, args.ub, args.lr, args.connectivity_threshold, args.metric, args.max_proteins, args.clusters_labeled)
+    recipe_results = cook(args.cluster_filepath, args.network_filepath, args.lb, args.ub, args.lr, args.connectivity_threshold, args.metric, args.max_proteins, args.clusters_labeled)
 
     for clkey in tqdm(cluster_dict.keys(),total=len(cluster_dict)):
         for m, metric_results in recipe_results.items():

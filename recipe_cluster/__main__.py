@@ -7,7 +7,7 @@ def main():
     subparsers.required = True
 
     modules = {
-        "cook": (cli.reconnect_main, cli.reconnect_parser),
+        "cook": (cli.cook_main, cli.cook_parser),
     }
 
     for name, (main_func, args_func) in modules.items():
