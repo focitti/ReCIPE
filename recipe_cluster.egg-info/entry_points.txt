@@ -1,2 +1,0 @@
-[console_scripts]
-recipe-cluster = recipe_cluster.__main__:main
