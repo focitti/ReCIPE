@@ -1,5 +1,5 @@
 # recipe/__init__.py
 
-from .cli import cook, reconnect, parse
+from .cli import cook
 
-__all__ = ['cook', 'reconnect', 'parse']
+__all__ = ['cook']

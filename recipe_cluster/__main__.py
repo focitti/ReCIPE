@@ -7,9 +7,6 @@ def main():
     subparsers.required = True
 
     modules = {
-#        "cluster": (cli.cluster_main, cli.cluster_parser),
-#        "parse": (cli.parse_main, cli.parse_parser),
-#        "reconnect": (cli.reconnect_main, cli.reconnect_parser),
         "cook": (cli.reconnect_main, cli.reconnect_parser),
     }
 
