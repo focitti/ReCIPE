@@ -308,9 +308,10 @@ def get_args(parser=None):
     parser.add_argument(
         "--metric", "-wm",
         required=False,
-        help = "Which metric(s) to use to rank proteins to be added back. Default: all. Options: all, degree, components_connected, score",
+        help = "Which metric to use to rank proteins to be added back. Default: degree. Options: degree, components_connected, score",
         type = str,
-        default = "all"
+        choices=['degree', 'components_connected', 'score'],
+        default = "degree"
     )
 
     parser.add_argument(
