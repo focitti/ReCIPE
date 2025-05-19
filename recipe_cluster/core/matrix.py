@@ -10,6 +10,7 @@ TODO: figure out how to use (oct 2022)
 
 """
 
+import time
 
 import pandas as pd 
 import numpy as np
@@ -43,10 +44,11 @@ class ProteinMatrix:
             # read csv file into a dataframe
             self.protein_data_df = pd.read_csv(csv_filename, delimiter = r'\s+', 
                 names = ["gene_1", "gene_2", "edge_weight"]) 
+
             # store names of all proteins
-            self.list_of_all_proteins_in_matrix = np.unique(np.append(self.
-                protein_data_df["gene_1"], self.protein_data_df["gene_2"]))
-            # populate the matrix with protein interactions
+            self.list_of_all_proteins_in_matrix = np.unique(np.append(self.protein_data_df["gene_1"], self.protein_data_df["gene_2"]))
+
+            # Initialize the interaction matrix
             self._init_matrix()
         
         except FileNotFoundError:
@@ -68,22 +70,20 @@ class ProteinMatrix:
                     from a csv file
         Returns:    n/a
         """
-        self.protein_matrix = pd.DataFrame(
-            columns=self.list_of_all_proteins_in_matrix, 
-            index=self.list_of_all_proteins_in_matrix)
-        
-        self.protein_matrix.fillna(0, inplace=True)
-        
-        # populate matrix with the interaction of one row
-        for n in range(len(self.protein_data_df)): 
 
-            protein1 = self.protein_data_df.iloc[n, 0]
-            protein2 = self.protein_data_df.iloc[n, 1]
-            interaction = self.protein_data_df.iloc[n, 2]
+        self.protein_matrix = pd.DataFrame(0.0, 
+                                           index=self.list_of_all_proteins_in_matrix, 
+                                           columns=self.list_of_all_proteins_in_matrix)
+        protein_pairs = self.protein_data_df[['gene_1', 'gene_2']].values
+        interactions = self.protein_data_df['edge_weight'].values
 
-            self.protein_matrix.loc[protein1, protein2] = interaction
-            self.protein_matrix.loc[protein2, protein1] = interaction
+        # gen row/colum indexing
+        row_idx = np.array([self.protein_matrix.index.get_loc(protein1) for protein1 in protein_pairs[:, 0]])
+        col_idx = np.array([self.protein_matrix.columns.get_loc(protein2) for protein2 in protein_pairs[:, 1]])
 
+        # create symmetric matrix
+        self.protein_matrix.values[row_idx, col_idx] = interactions
+        self.protein_matrix.values[col_idx, row_idx] = interactions
 
 
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -168,7 +168,7 @@ class SubMatrix:
     * * * * * * * * * * * * * MEMBER VARIABLES * * * * * * * * * * * * * *  
     """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
     list_of_all_proteins_in_matrix = np.array
-    protein_matrix = pd.DataFrame()
+    protein_matrix = pd.DataFrame
     csr_matrix : csr_matrix
 
 
@@ -193,34 +193,41 @@ class SubMatrix:
         self._init_matrix(original_matrix)
         self._init_csr_matrix_()
     
+
     def _init_matrix(self, original_matrix: ProteinMatrix):
         """             
-        Purpose:    a helper function to populate the new matrix with 
-                    interactions from the original matrix
-        Returns:    n/a
+        Purpose: Populate a new matrix with interactions from the original matrix in a vectorized manner.
+        Returns: n/a
         """
+        proteins = self.list_of_all_proteins_in_matrix
 
-        self.protein_matrix = pd.DataFrame(
-            columns=self.list_of_all_proteins_in_matrix, 
-            index=self.list_of_all_proteins_in_matrix)
-        self.protein_matrix.fillna(0.0, inplace=True)
+        # Initialize an empty matrix with zeros
+        self.protein_matrix = pd.DataFrame(0.0, index=proteins, columns=proteins)
+
+        # Extract relevant interaction data from the original matrix
+        protein_data = original_matrix.protein_data_df  # DataFrame with ['gene_1', 'gene_2', 'edge_weight']
+
+        # Use get_indexer for fast lookup of indices
+        row_idx = self.protein_matrix.index.get_indexer(protein_data["gene_1"])
+        col_idx = self.protein_matrix.columns.get_indexer(protein_data["gene_2"])
+
+        # Mask to filter valid indices (proteins that exist in our submatrix)
+        valid_mask = (row_idx != -1) & (col_idx != -1)
+
+        row_idx, col_idx, interactions = (
+            row_idx[valid_mask], 
+            col_idx[valid_mask], 
+            protein_data["edge_weight"].values[valid_mask]
+        )
+
+        # Convert DataFrame to NumPy array for fast assignment
+        matrix_values = self.protein_matrix.values
+
+        # Assign interactions to matrix (vectorized)
+        matrix_values[row_idx, col_idx] = interactions
+        matrix_values[col_idx, row_idx] = interactions  # Symmetric assignment
         
-        for i in range(np.size(self.list_of_all_proteins_in_matrix)):
-            for j in range (i + 1, np.size(self.list_of_all_proteins_in_matrix)):
-                protein1 = self.list_of_all_proteins_in_matrix[i]
-                protein2 = self.list_of_all_proteins_in_matrix[j]
-
-                try: 
-                    interaction = original_matrix.get_interaction(protein1, protein2)
-
-                    self.protein_matrix.iloc[i, j] = interaction
-                    self.protein_matrix.iloc[j, i] = interaction
-
-            
-                except KeyError: 
-                    pass
-                    # print(f"key error in init_matrix function in submatrix")
-
+        
     def _init_csr_matrix_(self):
         """             
         Purpose:    initializes a csr matrix to use for determining 
