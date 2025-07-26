@@ -51,7 +51,7 @@ options:
   --metric, -wm {degree,components_connected,score}
                         Which metric to use to rank proteins to be added back. Default: degree. Options: degree, components_connected, score
   --max_proteins MAX_PROTEINS
-                        Maximises number of proteins to added to a cluster. Default = 20
+                        Maximises number of proteins to added to a cluster. Default = None
   --protein_cap PROTEIN_CAP
                         Adds at most the number of proteins defined by parameter. Default = 20
 ```
