@@ -4,8 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "recipe-cluster"
-version = "0.0.4"
+version = "0.0.6"
 authors = [
+  { name="Charlote Versavel" },
   { name="focitti", email="focitt01@gmail.com" },
   { name="Sam Sledzieski", email="samsl@mit.edu" },
 ]

@@ -30,31 +30,30 @@ ReCIPE accepts both CSV and JSON formats for cluster files.
 This method analyses cluster, network and DSD files to determine the which proteins qualify to be introduced to clusters in order to create overlapping clusters.
 
 ```
-usage: recipe-cluster cook [-h] -cfp CLUSTER_FILEPATH [-cfl CLUSTERS_LABELED] -nfp NETWORK_FILEPATH--outfile OUTFILE
-                           [--lb LB] [--ub UB] [--lr LR] [--connectivity-threshold CONNECTIVITY_THRESHOLD]
-                           [--metric {degree,components_connected,score}] [--max_proteins MAX_PROTEINS]
+usage: recipe-cluster cook [-h] -cfp CLUSTER_FILEPATH [-cfl CLUSTERS_LABELED] -nfp NETWORK_FILEPATH --outfile OUTFILE [--lb LB] [--ub UB] [--lr LR]
+                           [--connectivity-threshold CONNECTIVITY_THRESHOLD] [--metric {degree,components_connected,score}] [--max_proteins MAX_PROTEINS] [--protein_cap PROTEIN_CAP]
 
 options:
   -h, --help            show this help message and exit
-  -cfp CLUSTER_FILEPATH, --cluster-filepath CLUSTER_FILEPATH
+  -cfp, --cluster-filepath CLUSTER_FILEPATH
                         Cluster filepath
-  -cfl CLUSTERS_LABELED, --clusters-labeled CLUSTERS_LABELED
+  -cfl, --clusters-labeled CLUSTERS_LABELED
                         If a CSV file of clusters is passed, clusters have labels. Default: False
-  -nfp NETWORK_FILEPATH, --network-filepath NETWORK_FILEPATH
+  -nfp, --network-filepath NETWORK_FILEPATH
                         Network filepath
   --outfile OUTFILE     Output file to save results
   --lb LB               Lower bound (inclusive) for cluster size. Default: 3
   --ub UB               Upper bound (exclusive) for cluster size. Default: 100
   --lr LR               Linear ratio (if not using sqrt). Default = None
-  --connectivity-threshold CONNECTIVITY_THRESHOLD, -cthresh CONNECTIVITY_THRESHOLD
-                        Connectivity threshold to add proteins until. Default = -1.0 (yields
-                        connectivity thresholds [0.1, 0.25, 0.5, 0.75, 1.0]) (if only a single
-                        option is desired, 0.75 is recommended)
-  --metric {degree,components_connected,score}, -wm {degree,components_connected,score}
-                        Which metric(s) to use to rank proteins to be added back. Default: degree.
-                        Options: degree, components_connected, score
+  --connectivity-threshold, -cthresh CONNECTIVITY_THRESHOLD
+                        Connectivity threshold to add proteins until. Default = -1.0 (yields connectivity thresholds [0.1, 0.25, 0.5, 0.75, 1.0]) (if only a single option is desired, 0.75
+                        is recommended)
+  --metric, -wm {degree,components_connected,score}
+                        Which metric to use to rank proteins to be added back. Default: degree. Options: degree, components_connected, score
   --max_proteins MAX_PROTEINS
-                        Max number of proteins to add to a cluster. Default = 20
+                        Maximises number of proteins to added to a cluster. Default = 20
+  --protein_cap PROTEIN_CAP
+                        Adds at most the number of proteins defined by parameter. Default = 20
 ```
 
 In addition to command line access, the `cook` method can be accessed programmatically with the same arguments as follows:

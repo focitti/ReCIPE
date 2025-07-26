@@ -54,6 +54,7 @@ def compute_qualifying_proteins(
     degree_cutoff = 5000,
     linear_ratio = None,
     max_added_proteins = None,
+    addition_cap = None,
     lower_bound = 3,
     upper_bound = 8
 ):
@@ -80,6 +81,9 @@ def compute_qualifying_proteins(
         percent_connectivity = 1 - (num_components - 1) / (num_proteins - 1)
         # loop through all the proteins and add proteins based on score
         while protein_to_add and percent_connectivity < connectivity_threshold:
+            if addition_cap:
+                if len(added_proteins) > addition_cap:
+                    break
             qualifying_proteins = {}
             connection_sitch = None
             # get sqrt of number of components in the subgraph
@@ -129,11 +133,11 @@ def compute_qualifying_proteins(
                 if protein_to_add:
                     potential_proteins.remove(protein_to_add)
                     added_proteins.append(protein_to_add)
-                    percent_connectivity = 1 - (num_components - 1) / (num_proteins - 1)
                     # get number of components in original cluster
                     submatrix = SubMatrix(cluster_proteins + added_proteins, matrix)
                     components_and_labels = submatrix.get_num_components_and_labels()
                     num_components = components_and_labels[0]
+                    percent_connectivity = 1 - (num_components - 1) / (num_proteins - 1)
 
         if len(added_proteins):
             all_proteins_to_add[cluster_num] = added_proteins
@@ -146,7 +150,8 @@ def cook(cluster_filepath,
               lr = None,
               cthresh = -1,
               metric = ["degree", "components_connected", "score"],
-              max_proteins = 20,
+              max_proteins = None,
+              addition_cap = 20,
               clusters_labeled = False):
     max_added_proteins = max_proteins # 3
     size = f"{lb}-{ub}"
@@ -184,6 +189,7 @@ def cook(cluster_filepath,
                 degree_cutoff = 5000,
                 linear_ratio = lr,
                 max_added_proteins = max_added_proteins,
+                addition_cap = addition_cap,
                 lower_bound=adjusted_lb,
                 upper_bound=ub
             )
@@ -211,7 +217,7 @@ def main(args=None):
     if not isinstance(args.metric, list):
         args.metric = [args.metric]
 
-    recipe_results = cook(args.cluster_filepath, args.network_filepath, args.lb, args.ub, args.lr, args.connectivity_threshold, args.metric, args.max_proteins, args.clusters_labeled)
+    recipe_results = cook(args.cluster_filepath, args.network_filepath, args.lb, args.ub, args.lr, args.connectivity_threshold, args.metric, args.max_proteins, args.protein_cap, args.clusters_labeled)
 
     for clkey in tqdm(cluster_dict.keys(),total=len(cluster_dict)):
         for m, metric_results in recipe_results.items():
@@ -317,10 +323,17 @@ def get_args(parser=None):
     parser.add_argument(
         "--max_proteins",
         required=False,
-        help = "Max number of proteins to add to a cluster. Default = 20",
+        help = "Maximises number of proteins to added to a cluster. Default = None",
         type=int,
-        default = 20 # TODO: SHOULD BE NONE TO ALLOW FOR CONNECTIVITY THRESHOLDS
-                      # TODO: Do connectivity parameter also
+        default = None
+    )
+
+    parser.add_argument(
+        "--protein_cap",
+        required=False,
+        help = "Adds at most the number of proteins defined by parameter. Default = 20",
+        type=int,
+        default = 20
     )
     # parser.add_argument("--ic", help = "Spectral parameter", type = int)
     return parser
